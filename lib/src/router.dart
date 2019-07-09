@@ -14,8 +14,27 @@ import 'package:fluro/fluro.dart';
 import 'package:fluro/src/common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:get_it/get_it.dart';
+
+// 全局 GetIt 实例,为了实现无context导航
+class ServiceLocator {
+  final GetIt getIt = GetIt();
+  void setupLocator(){
+    getIt.registerSingleton(NavigateService());
+  }
+}
+
+class NavigateService {
+  final GlobalKey<NavigatorState> key = GlobalKey(debugLabel: 'navigate_key');
+  NavigatorState get navigator => key.currentState;
+  get pushNamed => navigator.pushNamed;
+  get push => navigator.push;
+}
 
 class Router {
+
+  ServiceLocator serviceLocator = ServiceLocator();
+
   static final appRouter = new Router();
 
   /// The tree structure that stores the defined routes
@@ -68,7 +87,7 @@ class Router {
         } else {
           future = replace
               ? Navigator.pushReplacement(context, route)
-              : Navigator.push(context, route);
+              : serviceLocator.getIt<NavigateService>().push(route);
         }
         completer.complete();
       } else {
