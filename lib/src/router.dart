@@ -97,7 +97,7 @@ class Router {
       umpPath = splitParam[0];
     }
     if (replace) {
-      print('---------------replace最后先出栈 ${paths.last}');
+      print('---------------replace之后需要将被他替换掉的路径出栈 ${paths.last}');
       paths.removeLast();
     }
     print('---------------入栈 $umpPath');
