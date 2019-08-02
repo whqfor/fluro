@@ -27,8 +27,11 @@ class ServiceLocator {
 class NavigateService {
   final GlobalKey<NavigatorState> key = GlobalKey(debugLabel: 'navigate_key');
   NavigatorState get navigator => key.currentState;
-  get pushNamed => navigator.pushNamed;
-  get push => navigator.push;
+  get pushNamedG       => navigator.pushNamed;
+  get pushG            => navigator.push;
+  get pushReplacementG => navigator.pushReplacementNamed;
+  get popG             => navigator.pop;
+  get popUntilG        => navigator.popUntil;
 }
 
 class Router {
@@ -56,16 +59,50 @@ class Router {
     return _routeTree.matchRoute(path);
   }
 
-  bool pop(BuildContext context) => Navigator.pop(context);
+  // 出入栈管理 初始化根节点 '/'
+  List<String> paths = ["/"];
+  bool pop<T extends Object>(BuildContext context, [ T result ]) {
+    print('---------------出栈 ${paths.last}');
+    if (paths.length > 1) paths.removeLast();
+    return serviceLocator.getIt<NavigateService>().popG(result);
+  }
+
+  void popUntil(BuildContext context, String path) {
+//     serviceLocator.getIt<NavigateService>().popUntil(path);
+
+    if (!paths.contains(path)) {
+      print('router 不正确');
+      return;
+    }
+    while (paths.last != path) {
+      print('--------------------------- popUntil $path');
+      pop(context);
+    }
+  }
 
   ///
   Future navigateTo(BuildContext context, String path,
       {bool replace = false,
-      bool clearStack = false,
-      TransitionType transition,
-      Duration transitionDuration = const Duration(milliseconds: 250),
-      RouteTransitionsBuilder transitionBuilder,
-      Object arguments}) {
+        bool clearStack = false,
+        TransitionType transition,
+        Duration transitionDuration = const Duration(milliseconds: 250),
+        RouteTransitionsBuilder transitionBuilder,
+        Object arguments}) {
+
+
+    print('---------------入栈管理');
+    String umpPath = path;
+    if (umpPath.contains("?")) {
+      var splitParam = umpPath.split("?");
+      umpPath = splitParam[0];
+    }
+    if (replace) {
+      print('---------------replace最后先出栈 ${paths.last}');
+      paths.removeLast();
+    }
+    print('---------------入栈 $umpPath');
+    paths.add(umpPath);
+
     RouteMatch routeMatch = matchRoute(context, path,
         transitionType: transition,
         transitionsBuilder: transitionBuilder,
@@ -85,9 +122,12 @@ class Router {
           future =
               Navigator.pushAndRemoveUntil(context, route, (check) => false);
         } else {
-          future = replace
-              ? Navigator.pushReplacement(context, route)
-              : serviceLocator.getIt<NavigateService>().push(route);
+          if (replace) {
+//                        Navigator.pushReplacement(context, route)
+            future = serviceLocator.getIt<NavigateService>().pushReplacementG(route);
+          } else {
+            future = serviceLocator.getIt<NavigateService>().pushG(route);
+          }
         }
         completer.complete();
       } else {
@@ -117,9 +157,9 @@ class Router {
   ///
   RouteMatch matchRoute(BuildContext buildContext, String path,
       {RouteSettings routeSettings,
-      TransitionType transitionType,
-      Duration transitionDuration = const Duration(milliseconds: 250),
-      RouteTransitionsBuilder transitionsBuilder}) {
+        TransitionType transitionType,
+        Duration transitionDuration = const Duration(milliseconds: 250),
+        RouteTransitionsBuilder transitionsBuilder}) {
     RouteSettings settingsToUse = routeSettings;
     if (routeSettings == null) {
       settingsToUse = new RouteSettings(name: path);
@@ -161,7 +201,7 @@ class Router {
           return new CupertinoPageRoute<dynamic>(
               settings: routeSettings,
               fullscreenDialog:
-                  transition == TransitionType.cupertinoFullScreenDialog,
+              transition == TransitionType.cupertinoFullScreenDialog,
               builder: (BuildContext context) {
                 return handler.handlerFunc(
                     context, parameters, routeSettings.arguments);
@@ -236,7 +276,7 @@ class Router {
   /// property as callback to create routes that can be used with the [Navigator] class.
   Route<dynamic> generator(RouteSettings routeSettings) {
     RouteMatch match =
-        matchRoute(null, routeSettings.name, routeSettings: routeSettings);
+    matchRoute(null, routeSettings.name, routeSettings: routeSettings);
     return match.route;
   }
 
