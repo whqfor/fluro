@@ -80,6 +80,15 @@ class Router {
     }
   }
 
+  void popSkip(BuildContext context, String skip) {
+
+    while (Uri.parse(paths.last).host == skip) {
+      print('--------------------------- popSkip $skip -- ${paths.last}');
+      pop(context);
+    }
+  }
+
+
   ///
   Future navigateTo(BuildContext context, String path,
       {bool replace = false,
