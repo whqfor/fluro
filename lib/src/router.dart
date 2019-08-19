@@ -69,9 +69,7 @@ class Router {
 
   void popSkip(BuildContext context, String skip) {
     serviceLocator.getIt<NavigateService>().popUntilG(
-
-            (Route<dynamic> route) {
-          //    bool Function(Route<dynamic> route)
+        (Route<dynamic> route) {
           bool routePredicate = !route.willHandlePopInternally
               && route is ModalRoute
               && Uri.parse(route.settings.name).host != skip;
