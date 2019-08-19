@@ -59,35 +59,30 @@ class Router {
     return _routeTree.matchRoute(path);
   }
 
-  // 出入栈管理 初始化根节点 '/'
-  List<String> paths = ["/"];
   bool pop<T extends Object>(BuildContext context, [ T result ]) {
-    print('---------------出栈 ${paths.last}');
-    if (paths.length > 1) paths.removeLast();
     return serviceLocator.getIt<NavigateService>().popG(result);
   }
 
   void popUntil(BuildContext context, String path) {
-//     serviceLocator.getIt<NavigateService>().popUntil(path);
-
-    if (!paths.contains(path)) {
-      print('router 不正确');
-      return;
-    }
-    while (paths.last != path) {
-      print('--------------------------- popUntil $path');
-      pop(context);
-    }
+    serviceLocator.getIt<NavigateService>().popUntilG(ModalRoute.withName(path));
   }
 
   void popSkip(BuildContext context, String skip) {
+    serviceLocator.getIt<NavigateService>().popUntilG(
 
-    while (Uri.parse(paths.last).host == skip) {
-      print('--------------------------- popSkip $skip -- ${paths.last}');
-      pop(context);
-    }
+            (Route<dynamic> route) {
+          //    bool Function(Route<dynamic> route)
+          bool routePredicate = !route.willHandlePopInternally
+              && route is ModalRoute
+              && Uri.parse(route.settings.name).host != skip;
+          if (!routePredicate) { // 双重否定为肯定
+            // 包含则 skip 出栈
+            print('popSkip $skip -- ${route.settings.name}');
+          }
+          return routePredicate;
+        }
+    );
   }
-
 
   ///
   Future navigateTo(BuildContext context, String path,
@@ -98,25 +93,18 @@ class Router {
         RouteTransitionsBuilder transitionBuilder,
         Object arguments}) {
 
-
-    print('---------------入栈管理');
     String umpPath = path;
     if (umpPath.contains("?")) {
       var splitParam = umpPath.split("?");
       umpPath = splitParam[0];
     }
-    if (replace) {
-      print('---------------replace之后需要将被他替换掉的路径出栈 ${paths.last}');
-      paths.removeLast();
-    }
-    print('---------------入栈 $umpPath');
-    paths.add(umpPath);
+    RouteSettings userSettings = RouteSettings(name: umpPath, arguments: arguments);
 
     RouteMatch routeMatch = matchRoute(context, path,
         transitionType: transition,
         transitionsBuilder: transitionBuilder,
         transitionDuration: transitionDuration,
-        routeSettings: RouteSettings(arguments: arguments));
+        routeSettings: userSettings);
     Route<dynamic> route = routeMatch.route;
     Completer completer = new Completer();
     Future future = completer.future;
@@ -132,7 +120,7 @@ class Router {
               Navigator.pushAndRemoveUntil(context, route, (check) => false);
         } else {
           if (replace) {
-//                        Navigator.pushReplacement(context, route)
+            // Navigator.pushReplacement(context, route)
             future = serviceLocator.getIt<NavigateService>().pushReplacementG(route);
           } else {
             future = serviceLocator.getIt<NavigateService>().pushG(route);
@@ -170,6 +158,8 @@ class Router {
         Duration transitionDuration = const Duration(milliseconds: 250),
         RouteTransitionsBuilder transitionsBuilder}) {
     RouteSettings settingsToUse = routeSettings;
+
+    print('routeSettings   --------- $routeSettings');
     if (routeSettings == null) {
       settingsToUse = new RouteSettings(name: path);
     }
